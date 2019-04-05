@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">UrbanApp</string>
+    <string name="access_token">pk.eyJ1Ijoic3VuZ20iLCJhIjoiY2p1MDVlYWFzMnBycDRnbnB1bzRqYXB1dSJ9.RwngDwkgOPhmH8U01-_xmQ</string>
+    <string name="user_location_permission_explanation">Need permission to use app</string>
+    <string name="user_location_permission_not_granted">permission not granted!</string>
 </resources>
