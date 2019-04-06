@@ -1,11 +1,21 @@
 package com.example.sungm.urbanapp;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.Uri;
 import android.support.annotation.NonNull;
+import android.support.constraint.ConstraintLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.PopupWindow;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.example.sungm.urbanapp.objects.LuasPoints;
@@ -44,106 +54,85 @@ import java.util.List;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
 
 public class MapActivity extends AppCompatActivity implements
-        OnMapReadyCallback, PermissionsListener,MapboxMap.OnMapClickListener {
+        OnMapReadyCallback, PermissionsListener, MapboxMap.OnMapClickListener {
     private MapView mapView;
     private PermissionsManager permissionsManager;
     private MapboxMap mapboxMap;
-    private Style style ;
+    private Style style;
     private String geoJsonString;
     private List<Feature> markerCoordinates;
     private LuasPoints luasPoints;
     private CircleManager circleManager;
 
+    private Context mContext;
+    private Activity mActivity;
+
+    // Get the widgets reference from XML layout
+    private ConstraintLayout mLayout;
+
+
+    private PopupWindow mPopupWindow;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mContext = getApplicationContext();
+
+        // Get the activity
+        mActivity = MapActivity.this;
 
         Mapbox.getInstance(this,
                 getString(R.string.access_token));
         setContentView(R.layout.activity_map);
 
         mapView = findViewById(R.id.mapView);
+        mLayout = findViewById(R.id.map);
+
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
         InputStream inputStream = this.getResources().openRawResource(R.raw.luas_stops);
         String jsonString = readJsonFile(inputStream);
         Gson gson = new Gson();
         luasPoints = gson.fromJson(jsonString, LuasPoints.class);
-
+        Toast.makeText(this, luasPoints.getFeatures().get(0).getProperties().getName(), Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onMapReady(@NonNull MapboxMap nmapboxMap) {
         this.mapboxMap = nmapboxMap;
         style = mapboxMap.getStyle();
-
-
-
-
-        mapboxMap.setStyle(Style.DARK, new Style.OnStyleLoaded() {
+        mapboxMap.setStyle(Style.LIGHT, new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
+                circleManager = new CircleManager(mapView, mapboxMap, mapboxMap.getStyle());
+                circleManager.addClickListener(circle -> {
+                   // Toast.makeText(MapActivity.this, String.format("Stop: %s", luasPoints.getFeatures().get((int) circle.getId()).getProperties().getName()), Toast.LENGTH_SHORT).show();
+                    int index = (int) circle.getId();
+                    onClickCircle(index);
+                });
+                //circleManager.addLongClickListener();
 
-                FeatureCollection featureCollection = FeatureCollection.fromJson(geoJsonString);
-                markerCoordinates = featureCollection.features();
-//                style.addSource(new GeoJsonSource("marker-source",
-//                        FeatureCollection.fromFeatures(markerCoordinates)));
-//
-//// Add the marker image to map
-//                style.addImage("my-marker-image", BitmapFactory.decodeResource(
-//                        MapActivity.this.getResources(), R.drawable.blue_marker));
-//
-//// Adding an offset so that the bottom of the blue icon gets fixed to the coordinate, rather than the
-//// middle of the icon being fixed to the coordinate point.
-//                style.addLayer(new SymbolLayer("marker-layer", "marker-source")
-//                        .withProperties(PropertyFactory.iconImage("my-marker-image"),
-//                                iconOffset(new Float[]{0f, -9f})));
-//
-//// Add the selected marker source and layer
-//                style.addSource(new GeoJsonSource("selected-marker"));
-//
-//// Adding an offset so that the bottom of the blue icon gets fixed to the coordinate, rather than the
-//// middle of the icon being fixed to the coordinate point.
-//                style.addLayer(new SymbolLayer("selected-marker-layer", "selected-marker")
-//                        .withProperties(PropertyFactory.iconImage("my-marker-image"),
-//                                iconOffset(new Float[]{0f, -9f})));
-//                mapboxMap.addOnMapClickListener(MapActivity.this);
-
-
+                List<CircleOptions> circleOptionsList = new ArrayList<>();
+                for (int i = 0; i < luasPoints.getFeatures().size() - 1; i++) {
+                    circleOptionsList.add(new CircleOptions()
+                            .withLatLng(new LatLng(luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(1),
+                                    luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(0)))
+                            .withCircleColor(String.valueOf(ColorUtils.colorToRgbaString(Color.YELLOW)))
+                            .withCircleRadius(8f)
+                            .setDraggable(false)
+                    );
+                }
+                circleManager.create(circleOptionsList);
             }
         });
-
     }
-
-    private void drawStationMarkers() {
-
-
-//        circleManager = new CircleManager(mapView,mapboxMap, mapboxMap.getStyle());
-//        circleManager.addClickListener(circle -> {
-//            Toast.makeText(MapActivity.this,String.format("Stop: %s", wayPoints.get((int) circle.getId()+1).getName() ), Toast.LENGTH_SHORT).show();
-//
-//        });
-//        circleManager.addLongClickListener(circle -> Toast.makeText(MapActivity.this,
-//                String.format("Station long clicked %s", luasPoints.getFeatures().get((int) circle.getId()+1).getProperties().getName()),
-//                Toast.LENGTH_SHORT
-//        ).show());
-//
-//
-//        List<CircleOptions> circleOptionsList = new ArrayList<>();
-//            circleOptionsList.add(new CircleOptions()
-//                    .withLatLng(new LatLng(wayPoints.get(i).getCoordinates().latitude(), wayPoints.get(i).getCoordinates().longitude()))
-//                    .withCircleColor(ColorUtils.colorToRgbaString(colour))
-//                    .withCircleRadius(10f)
-//                    .setDraggable(false)
-//            );
-//
-//        }
 
 
     @Override
     public boolean onMapClick(@NonNull LatLng point) {
         return false;
     }
+
     // Add the mapView lifecycle to the activity's lifecycle methods
     @Override
     public void onResume() {
@@ -152,7 +141,7 @@ public class MapActivity extends AppCompatActivity implements
     }
 
     @Override
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     protected void onStart() {
         super.onStart();
         mapView.onStart();
@@ -188,7 +177,7 @@ public class MapActivity extends AppCompatActivity implements
         mapView.onSaveInstanceState(outState);
     }
 
-    @SuppressWarnings( {"MissingPermission"})
+    @SuppressWarnings({"MissingPermission"})
     private void enableLocationComponent(@NonNull Style loadedMapStyle) {
 // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
@@ -214,7 +203,8 @@ public class MapActivity extends AppCompatActivity implements
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
 
@@ -257,5 +247,35 @@ public class MapActivity extends AppCompatActivity implements
         return outputStream.toString();
     }
 
+    private void onClickCircle(int index){
+        LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(LAYOUT_INFLATER_SERVICE);
 
+        // Inflate the custom layout/view
+        View customView = inflater.inflate(R.layout.pop_up,null);
+
+        mPopupWindow = new PopupWindow(
+                customView,
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+
+        // Set an elevation value for popup window
+        // Call requires API level 21
+
+            mPopupWindow.setElevation(5.0f);
+
+
+        // Get a reference for the custom view close button
+        ImageButton closeButton = (ImageButton) customView.findViewById(R.id.ib_close);
+
+        // Set a click listener for the popup window close button
+        closeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mPopupWindow.dismiss();
+            }
+        });
+        mPopupWindow.showAtLocation(mLayout, Gravity.CENTER,0,0);
+    }
 }
+
