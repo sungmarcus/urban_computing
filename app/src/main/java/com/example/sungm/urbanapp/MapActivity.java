@@ -1,29 +1,37 @@
 package com.example.sungm.urbanapp;
 
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.BitmapFactory;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.constraint.ConstraintLayout;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.example.sungm.urbanapp.objects.LuasPoints;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.MutableData;
+import com.google.firebase.database.Transaction;
 import com.google.gson.Gson;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.geojson.Feature;
-import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 
 import com.mapbox.mapboxsdk.geometry.LatLng;
@@ -37,18 +45,18 @@ import com.mapbox.mapboxsdk.maps.Style;
 
 import com.mapbox.mapboxsdk.plugins.annotation.CircleManager;
 import com.mapbox.mapboxsdk.plugins.annotation.CircleOptions;
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
-import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
-import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 import com.mapbox.mapboxsdk.utils.ColorUtils;
 
-import java.io.BufferedReader;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
@@ -58,20 +66,20 @@ public class MapActivity extends AppCompatActivity implements
     private MapView mapView;
     private PermissionsManager permissionsManager;
     private MapboxMap mapboxMap;
-    private Style style;
-    private String geoJsonString;
-    private List<Feature> markerCoordinates;
     private LuasPoints luasPoints;
     private CircleManager circleManager;
-
     private Context mContext;
-    private Activity mActivity;
-
     // Get the widgets reference from XML layout
     private ConstraintLayout mLayout;
-
+    private LocationComponent locationComponent;
+    Point userLocation;
+    private NearbyStaton nearbyStaton;
 
     private PopupWindow mPopupWindow;
+
+    final FirebaseDatabase database = FirebaseDatabase.getInstance();
+    DatabaseReference ref = database.getReference();
+    final String userID = "marcus";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,8 +87,7 @@ public class MapActivity extends AppCompatActivity implements
         mContext = getApplicationContext();
 
         // Get the activity
-        mActivity = MapActivity.this;
-
+        nearbyStaton= new NearbyStaton("",false);
         Mapbox.getInstance(this,
                 getString(R.string.access_token));
         setContentView(R.layout.activity_map);
@@ -95,15 +102,67 @@ public class MapActivity extends AppCompatActivity implements
         Gson gson = new Gson();
         luasPoints = gson.fromJson(jsonString, LuasPoints.class);
         Toast.makeText(this, luasPoints.getFeatures().get(0).getProperties().getName(), Toast.LENGTH_SHORT).show();
+//        addStationDB();
+
+
+
+
+    }
+
+    @SuppressLint("MissingPermission")
+    private void checkLocation() {
+        LatLng currentLocation = new LatLng(locationComponent.getLastKnownLocation().getLatitude(), locationComponent.getLastKnownLocation().getLongitude());
+        LatLng pastLocation = new LatLng(userLocation.latitude(),userLocation.longitude());
+        String nearStation="";
+        LatLng station;
+        for(int i=0;i<luasPoints.getFeatures().size();i++){
+            station = new LatLng(luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(1),luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(0));
+            Double distance = currentLocation.distanceTo(station);
+            if(distance <=20){
+                nearStation = luasPoints.getFeatures().get(i).getProperties().getName();
+            }
+        }
+
+        Double distance = currentLocation.distanceTo(pastLocation);
+        if(distance <= 10){
+            if (nearStation==""){
+                userLocation=Point.fromLngLat(currentLocation.getLongitude(),currentLocation.getLatitude());
+                if(nearbyStaton.isNear) {
+                    setNumber(nearbyStaton.name,"decrease");
+                    nearbyStaton.clear();
+                }
+            }else{
+                if(nearbyStaton.isNear) {
+                    if (!(nearStation.equals(nearbyStaton.name))) {
+                        setNumber(nearbyStaton.name, "decrease");
+                        nearbyStaton = new NearbyStaton(nearStation, true);
+                    }
+                }else{
+                    nearbyStaton = new NearbyStaton(nearStation, true);
+                    setNumber(nearbyStaton.name, "increase");
+                }
+            }
+        }
+
+    }
+
+    public void setNumber(String station,String operation) {
+        DatabaseReference rootRef = FirebaseDatabase.getInstance().getReference();
+        DatabaseReference scoreRef = rootRef.child(station);
+       if(operation.equals("increase")){
+           scoreRef.child(userID).setValue("here");
+       }else{
+           scoreRef.child(userID).setValue(null);
+       }
     }
 
     @Override
     public void onMapReady(@NonNull MapboxMap nmapboxMap) {
         this.mapboxMap = nmapboxMap;
-        style = mapboxMap.getStyle();
         mapboxMap.setStyle(Style.LIGHT, new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
+                enableLocationComponent(style);
                 circleManager = new CircleManager(mapView, mapboxMap, mapboxMap.getStyle());
                 circleManager.addClickListener(circle -> {
                    // Toast.makeText(MapActivity.this, String.format("Stop: %s", luasPoints.getFeatures().get((int) circle.getId()).getProperties().getName()), Toast.LENGTH_SHORT).show();
@@ -123,6 +182,8 @@ public class MapActivity extends AppCompatActivity implements
                     );
                 }
                 circleManager.create(circleOptionsList);
+                FloatingActionButton fab = findViewById(R.id.fab);
+                fab.setOnClickListener(view -> checkLocation());
             }
         });
     }
@@ -183,7 +244,7 @@ public class MapActivity extends AppCompatActivity implements
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
 
 // Get an instance of the component
-            LocationComponent locationComponent = mapboxMap.getLocationComponent();
+            locationComponent = mapboxMap.getLocationComponent();
 
 // Activate with options
             locationComponent.activateLocationComponent(this, loadedMapStyle);
@@ -196,6 +257,7 @@ public class MapActivity extends AppCompatActivity implements
 
 // Set the component's render mode
             locationComponent.setRenderMode(RenderMode.COMPASS);
+            userLocation = Point.fromLngLat(locationComponent.getLastKnownLocation().getLongitude(),locationComponent.getLastKnownLocation().getLatitude());
         } else {
             permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(this);
@@ -277,5 +339,39 @@ public class MapActivity extends AppCompatActivity implements
         });
         mPopupWindow.showAtLocation(mLayout, Gravity.CENTER,0,0);
     }
+
+    private void addStationDB(){
+        List<com.example.sungm.urbanapp.objects.Feature> luasStations = luasPoints.getFeatures();
+        Map<String, Station> stations = new HashMap<>();
+        String name;
+        for(int i=0;i<luasStations.size();i++){
+            name = luasStations.get(i).getProperties().getName();
+            stations.put(name,new Station(0));
+        }
+        ref.setValue(stations);
+    }
+
+    public static class Station{
+        public int numberOfPeople;
+        public Station(int numberOfPeople){
+            this.numberOfPeople=numberOfPeople;
+        }
+    }
+
+    public static class NearbyStaton{
+        private String name;
+        private boolean isNear;
+        public NearbyStaton(String name,boolean isNear){
+            this.name=name;
+            this.isNear=isNear;
+        }
+
+        public void clear(){
+            this.name = "";
+            this.isNear= false;
+        }
+    }
+
+
 }
 

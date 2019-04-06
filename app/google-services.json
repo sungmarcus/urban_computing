@@ -1,0 +1,35 @@
+{
+  "project_info": {
+    "project_number": "986809248578",
+    "firebase_url": "https://urban-computing-app.firebaseio.com",
+    "project_id": "urban-computing-app",
+    "storage_bucket": "urban-computing-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:986809248578:android:e0913c39a6e7aab8",
+        "android_client_info": {
+          "package_name": "com.example.sungm.urbanapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsPfVFTLTy75aJzAYP6nVcFfly0gRlS0E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "986809248578-q2mvtmh8gpu7c8c8hftguc2hskqesntp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
