@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.support.annotation.NonNull;
 import android.support.constraint.ConstraintLayout;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -112,7 +113,6 @@ public class MapActivity extends AppCompatActivity implements
     @SuppressLint("MissingPermission")
     private void checkLocation() {
         LatLng currentLocation = new LatLng(locationComponent.getLastKnownLocation().getLatitude(), locationComponent.getLastKnownLocation().getLongitude());
-        LatLng pastLocation = new LatLng(userLocation.latitude(),userLocation.longitude());
         String nearStation="";
         LatLng station;
         for(int i=0;i<luasPoints.getFeatures().size();i++){
@@ -123,26 +123,25 @@ public class MapActivity extends AppCompatActivity implements
             }
         }
 
-        Double distance = currentLocation.distanceTo(pastLocation);
-        if(distance <= 10){
-            if (nearStation==""){
-                userLocation=Point.fromLngLat(currentLocation.getLongitude(),currentLocation.getLatitude());
-                if(nearbyStaton.isNear) {
-                    setNumber(nearbyStaton.name,"decrease");
-                    nearbyStaton.clear();
+        if (nearStation==""){
+            userLocation=Point.fromLngLat(currentLocation.getLongitude(),currentLocation.getLatitude());
+            if(nearbyStaton.isNear) {
+                setNumber(nearbyStaton.name,"decrease");
+                nearbyStaton.clear();
+            }
+        }else{
+            if(nearbyStaton.isNear) {
+                if (!(nearStation.equals(nearbyStaton.name))) {
+                    setNumber(nearbyStaton.name, "decrease");
+                    nearbyStaton = new NearbyStaton(nearStation, true);
                 }
             }else{
-                if(nearbyStaton.isNear) {
-                    if (!(nearStation.equals(nearbyStaton.name))) {
-                        setNumber(nearbyStaton.name, "decrease");
-                        nearbyStaton = new NearbyStaton(nearStation, true);
-                    }
-                }else{
-                    nearbyStaton = new NearbyStaton(nearStation, true);
-                    setNumber(nearbyStaton.name, "increase");
-                }
+                nearbyStaton.setName(nearStation);
+                nearbyStaton.setNear(true);
+                setNumber(nearbyStaton.name, "increase");
             }
         }
+
 
     }
 
@@ -183,7 +182,12 @@ public class MapActivity extends AppCompatActivity implements
                 }
                 circleManager.create(circleOptionsList);
                 FloatingActionButton fab = findViewById(R.id.fab);
-                fab.setOnClickListener(view -> checkLocation());
+                fab.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        checkLocation();
+                    }
+                });
             }
         });
     }
@@ -360,6 +364,23 @@ public class MapActivity extends AppCompatActivity implements
 
     public static class NearbyStaton{
         private String name;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public boolean isNear() {
+            return isNear;
+        }
+
+        public void setNear(boolean near) {
+            isNear = near;
+        }
+
         private boolean isNear;
         public NearbyStaton(String name,boolean isNear){
             this.name=name;
