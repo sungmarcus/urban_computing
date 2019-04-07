@@ -115,7 +115,7 @@ public class MapActivity extends AppCompatActivity implements
         Gson gson = new Gson();
         luasPoints = gson.fromJson(jsonString, LuasPoints.class);
         Toast.makeText(this, luasPoints.getFeatures().get(0).getProperties().getName(), Toast.LENGTH_SHORT).show();
-//        addStationDB();
+        //addStationDB();
         luasCodes();
 
     }
@@ -238,7 +238,7 @@ public class MapActivity extends AppCompatActivity implements
             public void onResponse(Call<MatrixResponse> call,
                                    Response<MatrixResponse> response) {
                 List<Double[]> durations = response.body().durations();
-                double timeToStation = durations.get(0)[1];
+                double timeToStation = (durations.get(0)[1])/60;
                 ImageButton closeButton = (ImageButton) customView.findViewById(R.id.ib_close);
                 TextView title = customView.findViewById(R.id.nameTV);
                 title.setText(name);
@@ -264,7 +264,7 @@ public class MapActivity extends AppCompatActivity implements
 
                 TextView resultTv = customView.findViewById(R.id.resultTV);
                 String resultString = "";
-                if (inbound.size() > 1) {
+                if (!(inbound.get(0).equals("No trams forecast"))) {
                     String due = inbound.get(0).getDueMins();
                     if (due.equals("DUE")) {
                         resultString += "You wont make the next inbound luas! \n";
@@ -277,7 +277,7 @@ public class MapActivity extends AppCompatActivity implements
                     }
                 }
 
-                if (outbound.size() > 1) {
+                if (!(outbound.get(0).equals("No trams forecast"))) {
                     String due = outbound.get(0).getDueMins();
                     if (due.equals("DUE")) {
                         resultString += "You wont make the next outbound luas! \n";
@@ -373,10 +373,6 @@ public class MapActivity extends AppCompatActivity implements
         }
     }
 
-    @Override
-    public boolean onMapClick(@NonNull LatLng point) {
-        return false;
-    }
 
     // Add the mapView lifecycle to the activity's lifecycle methods
     @Override

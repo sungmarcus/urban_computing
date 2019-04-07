@@ -24,7 +24,7 @@
 { "type": "Feature", "properties": { "Name": "Four Courts", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.27343611111111, 53.346863888888898 ] } },
 { "type": "Feature", "properties": { "Name": "Jervis", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.26533333333333, 53.347686111111102 ] } },
 { "type": "Feature", "properties": { "Name": "Abbey Street", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.25817222222222, 53.348588888888898 ] } },
-{ "type": "Feature", "properties": { "Name": "Busáras", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.25145, 53.350075 ] } },
+{ "type": "Feature", "properties": { "Name": "Busaras", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.25145, 53.350075 ] } },
 { "type": "Feature", "properties": { "Name": "Connolly", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.24994166666667, 53.350922222222202 ] } },
 { "type": "Feature", "properties": { "Name": "St Stephens Green", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.26133333333333, 53.3390722222222 ] } },
 { "type": "Feature", "properties": { "Name": "Harcourt", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.26265, 53.333358333333301 ] } },
@@ -56,7 +56,7 @@
 { "type": "Feature", "properties": { "Name": "Fortunestown", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.42460165, 53.284250633333002 ] } },
 { "type": "Feature", "properties": { "Name": "Saggart", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.43776255, 53.28467885 ] } },
 { "type": "Feature", "properties": { "Name": "Georges Dock", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.247575, 53.349528 ] } },
-{ "type": "Feature", "properties": { "Name": "Mayor Square - NCI", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.24339444444444, 53.349247222222203 ] } },
+{ "type": "Feature", "properties": { "Name": "Mayor Square", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.24339444444444, 53.349247222222203 ] } },
 { "type": "Feature", "properties": { "Name": "Spencer Dock", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.23714722222222, 53.348822222222203 ] } },
 { "type": "Feature", "properties": { "Name": "The Point", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.22925833333333, 53.34835 ] } },
 { "type": "Feature", "properties": { "Name": "Depot", "Description": "" }, "geometry": { "type": "Point", "coordinates": [ -6.36995833333333, 53.314658333333298 ] } }
