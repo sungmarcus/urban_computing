@@ -3,6 +3,7 @@ package com.example.sungm.urbanapp;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -19,18 +20,25 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.sungm.urbanapp.objects.LuasPoints;
+import com.example.sungm.urbanapp.objects.LuasStation;
+import com.example.sungm.urbanapp.objects.Tram;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.MutableData;
 import com.google.firebase.database.Transaction;
+import com.google.firebase.database.ValueEventListener;
 import com.google.gson.Gson;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
+import com.mapbox.api.directions.v5.DirectionsCriteria;
+import com.mapbox.api.matrix.v1.MapboxMatrix;
+import com.mapbox.api.matrix.v1.models.MatrixResponse;
 import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
@@ -49,6 +57,8 @@ import com.mapbox.mapboxsdk.plugins.annotation.CircleOptions;
 import com.mapbox.mapboxsdk.utils.ColorUtils;
 
 
+import org.w3c.dom.Text;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,11 +66,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
-
-import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MapActivity extends AppCompatActivity implements
         OnMapReadyCallback, PermissionsListener, MapboxMap.OnMapClickListener {
@@ -81,6 +90,9 @@ public class MapActivity extends AppCompatActivity implements
     final FirebaseDatabase database = FirebaseDatabase.getInstance();
     DatabaseReference ref = database.getReference();
     final String userID = "marcus";
+    Map<String, String> luasCodes;
+
+    private ProgressDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +100,7 @@ public class MapActivity extends AppCompatActivity implements
         mContext = getApplicationContext();
 
         // Get the activity
-        nearbyStaton= new NearbyStaton("",false);
+        nearbyStaton = new NearbyStaton("", false);
         Mapbox.getInstance(this,
                 getString(R.string.access_token));
         setContentView(R.layout.activity_map);
@@ -104,38 +116,36 @@ public class MapActivity extends AppCompatActivity implements
         luasPoints = gson.fromJson(jsonString, LuasPoints.class);
         Toast.makeText(this, luasPoints.getFeatures().get(0).getProperties().getName(), Toast.LENGTH_SHORT).show();
 //        addStationDB();
-
-
-
+        luasCodes();
 
     }
 
     @SuppressLint("MissingPermission")
     private void checkLocation() {
         LatLng currentLocation = new LatLng(locationComponent.getLastKnownLocation().getLatitude(), locationComponent.getLastKnownLocation().getLongitude());
-        String nearStation="";
+        String nearStation = "";
         LatLng station;
-        for(int i=0;i<luasPoints.getFeatures().size();i++){
-            station = new LatLng(luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(1),luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(0));
+        for (int i = 0; i < luasPoints.getFeatures().size(); i++) {
+            station = new LatLng(luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(1), luasPoints.getFeatures().get(i).getGeometry().getCoordinates().get(0));
             Double distance = currentLocation.distanceTo(station);
-            if(distance <=20){
+            if (distance <= 20) {
                 nearStation = luasPoints.getFeatures().get(i).getProperties().getName();
             }
         }
 
-        if (nearStation==""){
-            userLocation=Point.fromLngLat(currentLocation.getLongitude(),currentLocation.getLatitude());
-            if(nearbyStaton.isNear) {
-                setNumber(nearbyStaton.name,"decrease");
+        if (nearStation == "") {
+            userLocation = Point.fromLngLat(currentLocation.getLongitude(), currentLocation.getLatitude());
+            if (nearbyStaton.isNear) {
+                setNumber(nearbyStaton.name, "decrease");
                 nearbyStaton.clear();
             }
-        }else{
-            if(nearbyStaton.isNear) {
+        } else {
+            if (nearbyStaton.isNear) {
                 if (!(nearStation.equals(nearbyStaton.name))) {
                     setNumber(nearbyStaton.name, "decrease");
                     nearbyStaton = new NearbyStaton(nearStation, true);
                 }
-            }else{
+            } else {
                 nearbyStaton.setName(nearStation);
                 nearbyStaton.setNear(true);
                 setNumber(nearbyStaton.name, "increase");
@@ -145,14 +155,14 @@ public class MapActivity extends AppCompatActivity implements
 
     }
 
-    public void setNumber(String station,String operation) {
+    public void setNumber(String station, String operation) {
         DatabaseReference rootRef = FirebaseDatabase.getInstance().getReference();
         DatabaseReference scoreRef = rootRef.child(station);
-       if(operation.equals("increase")){
-           scoreRef.child(userID).setValue("here");
-       }else{
-           scoreRef.child(userID).setValue(null);
-       }
+        if (operation.equals("increase")) {
+            scoreRef.child(userID).setValue("here");
+        } else {
+            scoreRef.child(userID).setValue(null);
+        }
     }
 
     @Override
@@ -164,8 +174,9 @@ public class MapActivity extends AppCompatActivity implements
                 enableLocationComponent(style);
                 circleManager = new CircleManager(mapView, mapboxMap, mapboxMap.getStyle());
                 circleManager.addClickListener(circle -> {
-                   // Toast.makeText(MapActivity.this, String.format("Stop: %s", luasPoints.getFeatures().get((int) circle.getId()).getProperties().getName()), Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(MapActivity.this, String.format("Stop: %s", luasPoints.getFeatures().get((int) circle.getId()).getProperties().getName()), Toast.LENGTH_SHORT).show();
                     int index = (int) circle.getId();
+                    dialog = new ProgressDialog(MapActivity.this);
                     onClickCircle(index);
                 });
                 //circleManager.addLongClickListener();
@@ -192,6 +203,175 @@ public class MapActivity extends AppCompatActivity implements
         });
     }
 
+    private void onClickCircle(int index) {
+        dialog.show();
+        LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(LAYOUT_INFLATER_SERVICE);
+        String name = luasPoints.getFeatures().get(index).getProperties().getName();
+        Point dest = Point.fromLngLat(luasPoints.getFeatures().get(index).getGeometry().getCoordinates().get(0),
+                luasPoints.getFeatures().get(index).getGeometry().getCoordinates().get(1));
+        // Inflate the custom layout/view
+        View customView = inflater.inflate(R.layout.pop_up, null);
+
+        mPopupWindow = new PopupWindow(
+                customView,
+                RelativeLayout.LayoutParams.WRAP_CONTENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+        );
+
+        // Set an elevation value for popup window
+        // Call requires API level 21
+
+        mPopupWindow.setElevation(5.0f);
+
+        List<Point> listOfPoints = new ArrayList<>();
+        listOfPoints.add(userLocation);
+        listOfPoints.add(dest);
+        // Set a click listener for the popup window close button
+        MapboxMatrix directionsMatrixClient = MapboxMatrix.builder()
+                .accessToken("pk.eyJ1Ijoic3VuZ20iLCJhIjoiY2p1MDVlYWFzMnBycDRnbnB1bzRqYXB1dSJ9.RwngDwkgOPhmH8U01-_xmQ")
+                .profile(DirectionsCriteria.PROFILE_WALKING)
+                .coordinates(listOfPoints)
+                .build();
+
+        directionsMatrixClient.enqueueCall(new Callback<MatrixResponse>() {
+            @Override
+            public void onResponse(Call<MatrixResponse> call,
+                                   Response<MatrixResponse> response) {
+                List<Double[]> durations = response.body().durations();
+                double timeToStation = durations.get(0)[1];
+                ImageButton closeButton = (ImageButton) customView.findViewById(R.id.ib_close);
+                TextView title = customView.findViewById(R.id.nameTV);
+                title.setText(name);
+                TextView inboundTv = customView.findViewById(R.id.inboundTv);
+                TextView outboundTv = customView.findViewById(R.id.outboundTv);
+
+
+                LuasStation station = RealTimeInformation.returnLuasInfo(luasCodes.get(name));
+                List<Tram> inbound = station.getDirections().get(0).getTrams();
+                List<Tram> outbound = station.getDirections().get(1).getTrams();
+                String inboundString = "Inbound: \n";
+                for (int i = 0; i < inbound.size(); i++) {
+                    inboundString += inbound.get(i).getDestination() + " " + inbound.get(i).getDueMins() + "\n";
+                }
+
+                String outboundString = "Outbound: \n";
+                for (int i = 0; i < outbound.size(); i++) {
+                    outboundString += outbound.get(i).getDestination() + " " + outbound.get(i).getDueMins() + "\n";
+                }
+
+                inboundTv.setText(inboundString);
+                outboundTv.setText(outboundString);
+
+                TextView resultTv = customView.findViewById(R.id.resultTV);
+                String resultString = "";
+                if (inbound.size() > 1) {
+                    String due = inbound.get(0).getDueMins();
+                    if (due.equals("DUE")) {
+                        resultString += "You wont make the next inbound luas! \n";
+                    } else {
+                        if ((timeToStation > Double.parseDouble(due))) {
+                            resultString += "You wont make the next inbound luas! \n";
+                        } else {
+                            resultString += "You will make the next inbound luas! \n";
+                        }
+                    }
+                }
+
+                if (outbound.size() > 1) {
+                    String due = outbound.get(0).getDueMins();
+                    if (due.equals("DUE")) {
+                        resultString += "You wont make the next outbound luas! \n";
+                    } else {
+                        if ((timeToStation > Double.parseDouble(due))) {
+                            resultString += "You wont make the next outbound luas! \n";
+                        } else {
+                            resultString += "You will make the next outbound luas! \n";
+                        }
+                    }
+                } else {
+
+                }
+
+                resultTv.setText(resultString);
+
+                //check how many at station
+                ref.child(name).addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot snapshot) {
+                        int count = 0;
+                        TextView numberTv = customView.findViewById(R.id.numberTV);
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            count++;
+                        }
+                        count--;
+                        if (count <= 0) {
+                            numberTv.setText("There are no people at the stop!");
+                        } else {
+                            numberTv.setText("There are " + count + " people at the stop!");
+                        }
+                        dialog.dismiss();
+                        closeButton.setOnClickListener(view -> mPopupWindow.dismiss());
+                        mPopupWindow.showAtLocation(mLayout, Gravity.CENTER, 0, 0);
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                    }
+                });
+
+
+            }
+
+            @Override
+            public void onFailure(Call<MatrixResponse> call, Throwable throwable) {
+
+            }
+        });
+
+
+    }
+
+
+    public static class Station {
+        public int numberOfPeople;
+
+        public Station(int numberOfPeople) {
+            this.numberOfPeople = numberOfPeople;
+        }
+    }
+
+    public static class NearbyStaton {
+        private String name;
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public boolean isNear() {
+            return isNear;
+        }
+
+        public void setNear(boolean near) {
+            isNear = near;
+        }
+
+        private boolean isNear;
+
+        public NearbyStaton(String name, boolean isNear) {
+            this.name = name;
+            this.isNear = isNear;
+        }
+
+        public void clear() {
+            this.name = "";
+            this.isNear = false;
+        }
+    }
 
     @Override
     public boolean onMapClick(@NonNull LatLng point) {
@@ -261,7 +441,7 @@ public class MapActivity extends AppCompatActivity implements
 
 // Set the component's render mode
             locationComponent.setRenderMode(RenderMode.COMPASS);
-            userLocation = Point.fromLngLat(locationComponent.getLastKnownLocation().getLongitude(),locationComponent.getLastKnownLocation().getLatitude());
+            userLocation = Point.fromLngLat(locationComponent.getLastKnownLocation().getLongitude(), locationComponent.getLastKnownLocation().getLatitude());
         } else {
             permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(this);
@@ -313,86 +493,85 @@ public class MapActivity extends AppCompatActivity implements
         return outputStream.toString();
     }
 
-    private void onClickCircle(int index){
-        LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(LAYOUT_INFLATER_SERVICE);
-
-        // Inflate the custom layout/view
-        View customView = inflater.inflate(R.layout.pop_up,null);
-
-        mPopupWindow = new PopupWindow(
-                customView,
-                RelativeLayout.LayoutParams.WRAP_CONTENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
-        );
-
-        // Set an elevation value for popup window
-        // Call requires API level 21
-
-            mPopupWindow.setElevation(5.0f);
-
-
-        // Get a reference for the custom view close button
-        ImageButton closeButton = (ImageButton) customView.findViewById(R.id.ib_close);
-
-        // Set a click listener for the popup window close button
-        closeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mPopupWindow.dismiss();
-            }
-        });
-        mPopupWindow.showAtLocation(mLayout, Gravity.CENTER,0,0);
-    }
-
-    private void addStationDB(){
+    private void addStationDB() {
         List<com.example.sungm.urbanapp.objects.Feature> luasStations = luasPoints.getFeatures();
         Map<String, Station> stations = new HashMap<>();
         String name;
-        for(int i=0;i<luasStations.size();i++){
+        for (int i = 0; i < luasStations.size(); i++) {
             name = luasStations.get(i).getProperties().getName();
-            stations.put(name,new Station(0));
+            stations.put(name, new Station(0));
         }
         ref.setValue(stations);
     }
 
-    public static class Station{
-        public int numberOfPeople;
-        public Station(int numberOfPeople){
-            this.numberOfPeople=numberOfPeople;
-        }
+    private void luasCodes() {
+        luasCodes = new HashMap<>();
+        luasCodes.put("Stephens Green", "STX");
+        luasCodes.put("The Point", "TPT");
+        luasCodes.put("Spencer Dock", "SDK");
+        luasCodes.put("Mayor Square", "MYS");
+        luasCodes.put("Georges Dock", "GDK");
+        luasCodes.put("Connolly", "CON");
+        luasCodes.put("Busaras", "BUS");
+        luasCodes.put("Abbey Street", "ABB");
+        luasCodes.put("Jervis", "JER");
+        luasCodes.put("Four Courts", "FOU");
+        luasCodes.put("Smithfield", "SMI");
+        luasCodes.put("Museum", "MUS");
+        luasCodes.put("Heuston", "HEU");
+        luasCodes.put("James", "JAM");
+        luasCodes.put("Fatima", "FAT");
+        luasCodes.put("Rialto", "RIA");
+        luasCodes.put("Suir Road", "SUI");
+        luasCodes.put("Goldenbridge", "GOL");
+        luasCodes.put("Drimnagh", "DRI");
+        luasCodes.put("Blackhorse", "BLA");
+        luasCodes.put("Bluebell", "BLU");
+        luasCodes.put("Kylemore", "KYL");
+        luasCodes.put("Red Cow", "RED");
+        luasCodes.put("Kingswood", "KIN");
+        luasCodes.put("Belgard", "BEL");
+        luasCodes.put("Cookstown", "COO");
+        luasCodes.put("Hospital", "HOS");
+        luasCodes.put("Tallaght", "TAL");
+        luasCodes.put("Fettercairn", "FET");
+        luasCodes.put("Cheeverstown", "CVN");
+        luasCodes.put("Citywest Campus", "CIT");
+        luasCodes.put("Fortunestown", "FOR");
+        luasCodes.put("Saggart", "SAG");
+        luasCodes.put("Depot", "DEP");
+        luasCodes.put("Broombridge", "BRO");
+        luasCodes.put("Cabra", "CAB");
+        luasCodes.put("Phibsborough", "PHI");
+        luasCodes.put("Grangegorman", "GRA");
+        luasCodes.put("Broadstone DIT", "BRD");
+        luasCodes.put("Dominick", "DOM");
+        luasCodes.put("Parnell", "PAR");
+        luasCodes.put("Marlborough", "MAR");
+        luasCodes.put("St Stephens Green", "STS");
+        luasCodes.put("Harcourt", "HAR");
+        luasCodes.put("Charlemont", "CHA");
+        luasCodes.put("Ranelagh", "RAN");
+        luasCodes.put("Beechwood", "BEE");
+        luasCodes.put("Cowper", "COW");
+        luasCodes.put("Milltown", "MIL");
+        luasCodes.put("Windy Arbour", "WIN");
+        luasCodes.put("Dundrum", "DUN");
+        luasCodes.put("Balally", "BAL");
+        luasCodes.put("Kilmacud", "KIL");
+        luasCodes.put("Stillorgan", "STI");
+        luasCodes.put("Sandyford", "SAN");
+        luasCodes.put("Central Park", "CPK");
+        luasCodes.put("Glencairn", "GLE");
+        luasCodes.put("The Gallops", "GAL");
+        luasCodes.put("Leopardstown Valley", "LEO");
+        luasCodes.put("Ballyogan Wood", "BAW");
+        luasCodes.put("Racecourse", "RCC");
+        luasCodes.put("Carrickmines", "CCK");
+        luasCodes.put("Brennanstown", "BRE");
+        luasCodes.put("Laughanstown", "LAU");
+        luasCodes.put("Cherrywood", "CHE");
+        luasCodes.put("Brides Glen", "BRI");
     }
-
-    public static class NearbyStaton{
-        private String name;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public boolean isNear() {
-            return isNear;
-        }
-
-        public void setNear(boolean near) {
-            isNear = near;
-        }
-
-        private boolean isNear;
-        public NearbyStaton(String name,boolean isNear){
-            this.name=name;
-            this.isNear=isNear;
-        }
-
-        public void clear(){
-            this.name = "";
-            this.isNear= false;
-        }
-    }
-
-
 }
 

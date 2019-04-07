@@ -1,28 +1,67 @@
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rl_custom_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="2dp"
     android:background="#FFFFFF"
-    >
+    android:padding="2dp">
 
     <ImageButton
         android:id="@+id/ib_close"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_close_black_24dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentRight="true"
         android:background="@null"
-        />
-    <TextView
-        android:id="@+id/tv"
+        android:src="@drawable/ic_close_black_24dp" />
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="This is a sample popup window."
         android:layout_centerInParent="true"
-        android:padding="25sp"
-        />
+        android:orientation="vertical"
+        >
+        <TextView
+            android:id="@+id/nameTV"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="25sp"
+            android:text="Station" />
 
+        <TextView
+            android:id="@+id/numberTV"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="25sp"
+            android:text="How many?" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:weightSum="1"
+        >
+
+        <TextView
+            android:id="@+id/outboundTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="20sp"
+            android:text="Outbound"
+            android:layout_weight=".5"/>
+
+        <TextView
+            android:id="@+id/inboundTv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="25sp"
+            android:text="Inbound"
+            android:layout_weight=".5"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/resultTV"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="25sp"
+        android:text="Make it?" />
+</LinearLayout>
 </RelativeLayout>

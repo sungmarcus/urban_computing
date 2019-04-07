@@ -38,9 +38,18 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
     implementation 'com.mapbox.mapboxsdk:mapbox-android-sdk:7.3.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-services:4.5.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-core:4.5.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-geojson:4.5.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-services:4.5.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-sdk-turf:4.5.0'
 
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-annotation-v7:0.5.0'
+
+    implementation 'com.squareup.retrofit2:retrofit:2.4.0'
+    implementation "com.squareup.retrofit2:converter-simplexml:2.0.2"
+
 }
 
 apply plugin: 'com.google.gms.google-services'
